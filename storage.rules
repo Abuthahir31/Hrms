@@ -1,0 +1,16 @@
+rules_version = '2';
+
+// Firebase Storage Security Rules for HRMS Application
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Allow anyone to upload resumes to the resumes folder
+    match /resumes/{allPaths=**} {
+      allow read, write: if true;
+    }
+    
+    // Deny access to all other paths by default
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
