@@ -76,46 +76,55 @@ function AdminLogin() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-            {/* Animated Background Elements */}
+        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+            {/* Animated Background Elements - Hitachi Orange */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob"></div>
-                <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000"></div>
-                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-pink-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000"></div>
+                <div className="absolute -top-40 -right-40 w-96 h-96 bg-orange-600 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob"></div>
+                <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-orange-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob animation-delay-2000"></div>
+                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-orange-400 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob animation-delay-4000"></div>
             </div>
 
             <div className="max-w-md w-full space-y-8 relative">
                 {/* Login Card */}
-                <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl p-8 border border-white/20">
-                    {/* Header */}
-                    <div className="text-center">
-                        <div className="mx-auto h-20 w-20 flex items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 mb-6 shadow-lg">
+                <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border-t-4 border-orange-600">
+                    {/* Header with Hitachi Branding */}
+                    <div className="bg-gradient-to-r from-gray-900 to-gray-800 px-8 py-10 text-center">
+                        {/* Hitachi Logo Placeholder - Construction Icon */}
+                        <div className="mx-auto h-20 w-20 flex items-center justify-center rounded-xl bg-orange-600 mb-4 shadow-lg">
                             <svg className="h-12 w-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
                             </svg>
                         </div>
-                        <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
-                            Admin Portal
+
+                        <h1 className="text-xl font-bold text-white mb-1">
+                            Hitachi Construction Machinery
+                        </h1>
+                        <p className="text-orange-400 text-sm font-semibold mb-3">
+                            Zambia Co., Ltd
+                        </p>
+                        <div className="h-px bg-gradient-to-r from-transparent via-orange-600 to-transparent mb-3"></div>
+                        <h2 className="text-lg font-bold text-orange-500">
+                            HR Admin Portal
                         </h2>
-                        <p className="text-gray-600 text-sm">
-                            Sign in to access the management dashboard
+                        <p className="text-gray-400 text-xs mt-2">
+                            Secure Management System
                         </p>
                     </div>
 
                     {/* Login Form */}
-                    <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+                    <form className="px-8 py-8 space-y-6" onSubmit={handleSubmit}>
                         {error && (
-                            <div className="bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded-lg flex items-start gap-3 animate-shake">
+                            <div className="bg-red-50 border-l-4 border-red-600 text-red-800 px-4 py-3 rounded flex items-start gap-3 animate-shake">
                                 <svg className="w-5 h-5 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                                 </svg>
-                                <span className="text-sm">{error}</span>
+                                <span className="text-sm font-medium">{error}</span>
                             </div>
                         )}
 
                         <div className="space-y-5">
                             <div>
-                                <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
+                                <label htmlFor="email" className="block text-sm font-bold text-gray-800 mb-2">
                                     Email Address
                                 </label>
                                 <div className="relative">
@@ -132,14 +141,14 @@ function AdminLogin() {
                                         required
                                         value={credentials.email}
                                         onChange={handleChange}
-                                        className="appearance-none block w-full pl-12 pr-4 py-3.5 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white/50"
-                                        placeholder="admin@company.com"
+                                        className="appearance-none block w-full pl-12 pr-4 py-3 border-2 border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-600 focus:border-orange-600 transition-all duration-200"
+                                        placeholder="admin@hitachi-cm.co.zm"
                                     />
                                 </div>
                             </div>
 
                             <div>
-                                <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">
+                                <label htmlFor="password" className="block text-sm font-bold text-gray-800 mb-2">
                                     Password
                                 </label>
                                 <div className="relative">
@@ -156,7 +165,7 @@ function AdminLogin() {
                                         required
                                         value={credentials.password}
                                         onChange={handleChange}
-                                        className="appearance-none block w-full pl-12 pr-4 py-3.5 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white/50"
+                                        className="appearance-none block w-full pl-12 pr-4 py-3 border-2 border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-600 focus:border-orange-600 transition-all duration-200"
                                         placeholder="••••••••"
                                     />
                                 </div>
@@ -169,24 +178,24 @@ function AdminLogin() {
                                     id="remember-me"
                                     name="remember-me"
                                     type="checkbox"
-                                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
+                                    className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded cursor-pointer"
                                 />
-                                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700 cursor-pointer">
+                                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700 cursor-pointer font-medium">
                                     Remember me
                                 </label>
                             </div>
 
-                            <div className="text-sm">
-                                <a href="#" className="font-medium text-blue-600 hover:text-blue-500 transition-colors">
+                            {/* <div className="text-sm">
+                                <a href="#" className="font-semibold text-orange-600 hover:text-orange-700 transition-colors">
                                     Forgot password?
                                 </a>
-                            </div>
+                            </div> */}
                         </div>
 
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="group relative w-full flex justify-center py-3.5 px-4 border border-transparent text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                            className="group relative w-full flex justify-center py-3.5 px-4 border border-transparent text-base font-bold rounded-lg text-white bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                         >
                             {isLoading ? (
                                 <span className="flex items-center">
@@ -201,18 +210,33 @@ function AdminLogin() {
                                     <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
                                     </svg>
-                                    Sign In
+                                    Sign In to Portal
                                 </span>
                             )}
                         </button>
                     </form>
 
                     {/* Footer */}
-                    <div className="mt-6 pt-6 border-t border-gray-200">
-                        <p className="text-xs text-gray-500 text-center">
-                            🔒 Secure admin access · Unauthorized access is prohibited
+                    <div className="px-8 py-6 bg-gray-50 border-t border-gray-200">
+                        <div className="flex items-center justify-center gap-2 text-xs text-gray-600">
+                            <svg className="w-4 h-4 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 0 012 2v5a2 0 01-2 2H5a2 0 01-2-2v-5a2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                            </svg>
+                            <span className="font-semibold">Secure Access</span>
+                            <span className="text-gray-400">•</span>
+                            <span>Authorized Personnel Only</span>
+                        </div>
+                        <p className="text-center text-xs text-gray-500 mt-2">
+                            © 2024 Hitachi Construction Machinery Zambia Co., Ltd
                         </p>
                     </div>
+                </div>
+
+                {/* Tagline */}
+                <div className="text-center">
+                    <p className="text-orange-500 font-bold text-sm tracking-wide">
+                        RELIABLE • INNOVATIVE • TRUSTED
+                    </p>
                 </div>
             </div>
 
