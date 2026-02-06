@@ -1,26 +1,173 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# ============================================
+# HRMS Project - Comprehensive .gitignore
+# ============================================
 
-# dependencies
-/node_modules
+# ==========================================
+# Dependencies
+# ==========================================
+node_modules/
 /.pnp
 .pnp.js
+functions/node_modules/
 
-# testing
-/coverage
-
-# production
-/build
-
-# misc
-.DS_Store
+# ==========================================
+# Environment Variables & Secrets
+# ==========================================
+# Root environment files
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
+# Functions environment files
+functions/.env
+functions/.env.yaml
+functions/.env.local
+functions/.env.production
+
+# Firebase Service Account Keys (CRITICAL - NEVER COMMIT!)
+scripts/serviceAccountKey.json
+**/serviceAccountKey.json
+firebase-adminsdk-*.json
+
+# API Keys and Secrets
+*.key
+*.pem
+secrets/
+.secrets/
+
+# ==========================================
+# Build & Production
+# ==========================================
+/build
+/dist
+/.next
+/out
+*.tsbuildinfo
+
+# ==========================================
+# Testing & Coverage
+# ==========================================
+/coverage
+*.lcov
+.nyc_output
+
+# ==========================================
+# Logs
+# ==========================================
+logs/
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+lerna-debug.log*
+pnpm-debug.log*
 
+# ==========================================
+# Firebase
+# ==========================================
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+.firebaserc.local
+
+# ==========================================
+# Deployment
+# ==========================================
 .vercel
+.vercel/
+*.vercel.json
+
+# ==========================================
+# IDE & Editor Files
+# ==========================================
+# VSCode
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+*.code-workspace
+
+# JetBrains IDEs
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# ==========================================
+# Operating System Files
+# ==========================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# ==========================================
+# Package Manager Files
+# ==========================================
+package-lock.json.backup
+yarn.lock.backup
+pnpm-lock.yaml.backup
+*.backup
+
+# ==========================================
+# Temporary & Cache Files
+# ==========================================
+*.tmp
+*.temp
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+
+# ==========================================
+# Documentation (Optional - Keep if needed)
+# ==========================================
+# Uncomment if you don't want to commit these
+# BREVO_FIX.md
+# BREVO_EMAIL_FIX.md
+# BREVO_IP_FIX.md
+# FIREBASE_PERMISSIONS_FIX.md
+
+# ==========================================
+# Miscellaneous
+# ==========================================
+*.orig
+*.rej
+*.bak
+.env.backup
+.env.old
+
+# Debug files
+debug/
+*.debug
+
+# Local configuration
+local.config.js
+local.settings.json

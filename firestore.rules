@@ -8,9 +8,55 @@ service cloud.firestore {
       allow read, write: if true;
     }
     
+    // Pending verifications - temporary OTP storage
+    match /pending_verifications/{email} {
+      // Anyone can create (for signup)
+      allow create: if true;
+      
+      // Only allow reading own pending verification
+      allow read: if request.auth == null || resource.data.email == request.auth.token.email;
+      
+      // No updates or deletes from client (handled by Cloud Functions)
+      allow update, delete: if false;
+    }
+    
+    // Users collection - authenticated users can manage their own profile
+    match /users/{userId} {
+      // Allow authenticated users to read all user profiles (for reporting)
+      allow read: if request.auth != null;
+      
+      // Allow users to create their own profile on signup
+      allow create: if request.auth != null && request.auth.uid == userId;
+      
+      // Allow users to update their own profile
+      allow update: if request.auth != null && request.auth.uid == userId;
+      
+      // Prevent deletion of user profiles
+      allow delete: if false;
+    }
+    
+    // Job Postings - used by Admin to post jobs
+    match /job_postings/{document=**} {
+      allow read, write: if true;
+    }
+
+    // Departments - used by Admin to manage departments
+    match /departments/{document=**} {
+      allow read, write: if true;
+    }
+
+    // Offer Letters - used by Admin to generate and send offer letters
+    match /offer_letters/{document=**} {
+      allow read, write: if true;
+    }
+
+
     // Deny access to all other collections by default
     match /{document=**} {
       allow read, write: if false;
     }
   }
 }
+
+
+

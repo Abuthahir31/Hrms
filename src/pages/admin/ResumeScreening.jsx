@@ -1,14 +1,24 @@
 import { useState, useEffect } from 'react'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { collection, getDocs, doc, updateDoc, query, orderBy } from 'firebase/firestore'
-import { db } from '../../config/firebase'
+import { httpsCallable } from 'firebase/functions'
+import { db, functions } from '../../config/firebase'
 
 function ResumeScreening() {
+    const navigate = useNavigate()
     const [applications, setApplications] = useState([])
     const [loading, setLoading] = useState(true)
     const [selectedApp, setSelectedApp] = useState(null)
     const [showInterviewModal, setShowInterviewModal] = useState(false)
     const [showEvaluationModal, setShowEvaluationModal] = useState(false)
     const [activeTab, setActiveTab] = useState('pending') // pending, shortlisted, interviewed
+
+    // Filter States
+    const [searchTerm, setSearchTerm] = useState('')
+    const [departmentFilter, setDepartmentFilter] = useState('')
+    const [jobFilter, setJobFilter] = useState('')
+    const [jobs, setJobs] = useState([])
+    const [departments, setDepartments] = useState([])
 
     const [interviewDetails, setInterviewDetails] = useState({
         date: '',
@@ -25,9 +35,33 @@ function ResumeScreening() {
         notes: ''
     })
 
-    // Fetch applications from Firestore
+    const sendEmailNotification = async (app, status, additionalData = {}) => {
+        try {
+            const sendEmail = httpsCallable(functions, 'sendApplicationUpdateEmail')
+            await sendEmail({
+                email: app.personalDetails.email,
+                applicantName: app.personalDetails.fullName,
+                jobTitle: app.jobTitle,
+                status: status,
+                additionalData: additionalData
+            })
+            console.log(`Email notification sent for status: ${status}`)
+        } catch (error) {
+            console.error('Error sending email:', error)
+            alert('Failed to send email notification. Check console for details.')
+        }
+    }
+
+    // Fetch data from Firestore
     useEffect(() => {
-        fetchApplications()
+        const fetchInitialData = async () => {
+            await Promise.all([
+                fetchApplications(),
+                fetchJobs(),
+                fetchDepartments()
+            ])
+        }
+        fetchInitialData()
     }, [])
 
     const fetchApplications = async () => {
@@ -50,6 +84,36 @@ function ResumeScreening() {
             console.error('Error fetching applications:', error)
         } finally {
             setLoading(false)
+        }
+    }
+
+    const fetchJobs = async () => {
+        try {
+            const jobsRef = collection(db, 'job_postings')
+            const q = query(jobsRef, orderBy('postedDate', 'desc'))
+            const querySnapshot = await getDocs(q)
+            const jobsList = querySnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }))
+            setJobs(jobsList)
+        } catch (error) {
+            console.error('Error fetching jobs:', error)
+        }
+    }
+
+    const fetchDepartments = async () => {
+        try {
+            const deptsRef = collection(db, 'departments')
+            const q = query(deptsRef, orderBy('name', 'asc'))
+            const querySnapshot = await getDocs(q)
+            const deptsList = querySnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }))
+            setDepartments(deptsList)
+        } catch (error) {
+            console.error('Error fetching departments:', error)
         }
     }
 
@@ -78,14 +142,16 @@ function ResumeScreening() {
     const handleHold = async (app) => {
         if (window.confirm(`Put ${app.personalDetails.fullName}'s application on hold?`)) {
             await updateApplicationStatus(app.id, 'on_hold')
+            await sendEmailNotification(app, 'on_hold')
+            alert('Application put on hold and email sent.')
         }
     }
 
     const handleReject = async (app) => {
         if (window.confirm(`Reject ${app.personalDetails.fullName}'s application?`)) {
             await updateApplicationStatus(app.id, 'rejected')
-            // TODO: Send rejection email
-            alert('Rejection email will be sent (Brevo integration pending)')
+            await sendEmailNotification(app, 'rejected')
+            alert('Application rejected and email sent.')
         }
     }
 
@@ -112,8 +178,12 @@ function ResumeScreening() {
             }
         })
 
-        // TODO: Send interview invitation email
-        alert('Interview scheduled! Invitation email will be sent (Brevo integration pending)')
+        // Send interview invitation email
+        await sendEmailNotification(selectedApp, 'shortlisted', {
+            interview: interviewDetails
+        })
+
+        alert('Interview scheduled and invitation email sent!')
 
         setShowInterviewModal(false)
         setInterviewDetails({
@@ -139,8 +209,10 @@ function ResumeScreening() {
             }
         })
 
-        // TODO: Send offer letter
-        alert('Candidate selected! Offer letter will be sent (Brevo integration pending)')
+        // Send offer letter email
+        await sendEmailNotification(selectedApp, 'selected')
+
+        alert('Candidate selected and offer email sent!')
 
         setShowEvaluationModal(false)
         setEvaluation({
@@ -161,17 +233,41 @@ function ResumeScreening() {
                 }
             })
 
-            // TODO: Send rejection email
-            alert('Rejection email will be sent (Brevo integration pending)')
+            // Send rejection email
+            await sendEmailNotification(selectedApp, 'rejected')
+
+            alert('Application rejected and email sent.')
 
             setShowEvaluationModal(false)
         }
     }
 
     const filteredApplications = applications.filter(app => {
-        if (activeTab === 'pending') return app.status === 'pending' || app.status === 'on_hold' || !app.status
-        if (activeTab === 'shortlisted') return app.status === 'shortlisted'
-        if (activeTab === 'interviewed') return app.status === 'interviewed' || app.status === 'selected' || app.status === 'rejected'
+        // Tab Filter
+        let matchesTab = false
+        if (activeTab === 'pending') matchesTab = app.status === 'pending' || app.status === 'on_hold' || !app.status
+        else if (activeTab === 'shortlisted') matchesTab = app.status === 'shortlisted'
+        else if (activeTab === 'interviewed') matchesTab = app.status === 'interviewed' || app.status === 'selected' || app.status === 'rejected'
+
+        if (!matchesTab) return false
+
+        // Search Filter
+        if (searchTerm) {
+            const searchLower = searchTerm.toLowerCase()
+            const nameMatch = app.personalDetails?.fullName?.toLowerCase().includes(searchLower)
+            const emailMatch = app.personalDetails?.email?.toLowerCase().includes(searchLower)
+            if (!nameMatch && !emailMatch) return false
+        }
+
+        // Job Filter
+        if (jobFilter && app.jobId !== jobFilter) return false
+
+        // Department Filter
+        if (departmentFilter) {
+            const job = jobs.find(j => j.id === app.jobId)
+            if (!job || job.department !== departmentFilter) return false
+        }
+
         return true
     })
 
@@ -183,31 +279,82 @@ function ResumeScreening() {
                 <p className="text-gray-600">Review applications and manage interview process</p>
             </div>
 
+            {/* Filters */}
+            <div className="bg-white p-4 rounded-xl border border-purple-100 shadow-sm mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Search */}
+                    <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+                        <input
+                            type="text"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                            placeholder="Search by name or email"
+                        />
+                    </div>
+
+                    {/* Department Filter */}
+                    <div>
+                        <select
+                            value={departmentFilter}
+                            onChange={(e) => setDepartmentFilter(e.target.value)}
+                            className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-lg"
+                        >
+                            <option value="">All Departments</option>
+                            {departments.map((dept) => (
+                                <option key={dept.id} value={dept.name}>{dept.name}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Job Filter */}
+                    <div>
+                        <select
+                            value={jobFilter}
+                            onChange={(e) => setJobFilter(e.target.value)}
+                            className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-lg"
+                        >
+                            <option value="">All Jobs</option>
+                            {jobs
+                                .filter(job => !departmentFilter || job.department === departmentFilter)
+                                .map((job) => (
+                                    <option key={job.id} value={job.id}>{job.jobTitle}</option>
+                                ))}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
             {/* Tabs */}
-            <div className="flex gap-4 mb-6 border-b border-gray-200">
+            <div className="flex gap-4 mb-6 border-b border-gray-200 overflow-x-auto pb-1 scrollbar-hide">
                 <button
                     onClick={() => setActiveTab('pending')}
-                    className={`px-6 py-3 font-semibold transition-colors border-b-2 ${activeTab === 'pending'
-                            ? 'border-primary-500 text-primary-600'
-                            : 'border-transparent text-gray-600 hover:text-gray-900'
+                    className={`px-6 py-3 font-semibold transition-colors border-b-2 whitespace-nowrap ${activeTab === 'pending'
+                        ? 'border-primary-500 text-primary-600'
+                        : 'border-transparent text-gray-600 hover:text-gray-900'
                         }`}
                 >
                     Pending Applications ({applications.filter(a => a.status === 'pending' || a.status === 'on_hold' || !a.status).length})
                 </button>
                 <button
                     onClick={() => setActiveTab('shortlisted')}
-                    className={`px-6 py-3 font-semibold transition-colors border-b-2 ${activeTab === 'shortlisted'
-                            ? 'border-primary-500 text-primary-600'
-                            : 'border-transparent text-gray-600 hover:text-gray-900'
+                    className={`px-6 py-3 font-semibold transition-colors border-b-2 whitespace-nowrap ${activeTab === 'shortlisted'
+                        ? 'border-primary-500 text-primary-600'
+                        : 'border-transparent text-gray-600 hover:text-gray-900'
                         }`}
                 >
                     Shortlisted ({applications.filter(a => a.status === 'shortlisted').length})
                 </button>
                 <button
                     onClick={() => setActiveTab('interviewed')}
-                    className={`px-6 py-3 font-semibold transition-colors border-b-2 ${activeTab === 'interviewed'
-                            ? 'border-primary-500 text-primary-600'
-                            : 'border-transparent text-gray-600 hover:text-gray-900'
+                    className={`px-6 py-3 font-semibold transition-colors border-b-2 whitespace-nowrap ${activeTab === 'interviewed'
+                        ? 'border-primary-500 text-primary-600'
+                        : 'border-transparent text-gray-600 hover:text-gray-900'
                         }`}
                 >
                     Processed ({applications.filter(a => a.status === 'interviewed' || a.status === 'selected' || a.status === 'rejected').length})
@@ -235,7 +382,7 @@ function ResumeScreening() {
                             <div className="flex flex-col lg:flex-row gap-6">
                                 {/* Applicant Info */}
                                 <div className="flex-1">
-                                    <div className="flex items-start justify-between mb-4">
+                                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
                                         <div>
                                             <h3 className="text-xl font-bold text-gray-900 mb-1">
                                                 {app.personalDetails?.fullName || 'N/A'}
@@ -243,10 +390,10 @@ function ResumeScreening() {
                                             <p className="text-primary-600 font-semibold">{app.jobTitle || 'N/A'}</p>
                                         </div>
                                         <span className={`px-3 py-1 rounded-full text-xs font-semibold ${app.status === 'selected' ? 'bg-green-100 text-green-700' :
-                                                app.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                                                    app.status === 'shortlisted' ? 'bg-blue-100 text-blue-700' :
-                                                        app.status === 'on_hold' ? 'bg-yellow-100 text-yellow-700' :
-                                                            'bg-gray-100 text-gray-700'
+                                            app.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                                app.status === 'shortlisted' ? 'bg-blue-100 text-blue-700' :
+                                                    app.status === 'on_hold' ? 'bg-yellow-100 text-yellow-700' :
+                                                        'bg-gray-100 text-gray-700'
                                             }`}>
                                             {app.status || 'pending'}
                                         </span>
@@ -356,6 +503,16 @@ function ResumeScreening() {
                                             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm"
                                         >
                                             ✓ Shortlist
+                                        </button>
+                                    )}
+
+                                    {/* Selected - Generate Offer Letter */}
+                                    {app.status === 'selected' && (
+                                        <button
+                                            onClick={() => navigate(`/admin/offer-letter/${app.id}`)}
+                                            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium text-sm"
+                                        >
+                                            📄 Generate Offer Letter
                                         </button>
                                     )}
                                 </div>

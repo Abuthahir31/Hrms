@@ -1,28 +1,61 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { collection, getDocs, query, orderBy } from 'firebase/firestore'
+import { db } from '../../config/firebase'
 
 function AdminDashboard() {
     const [jobs, setJobs] = useState([])
+    const [loading, setLoading] = useState(true)
     const [stats, setStats] = useState({
         totalJobs: 0,
         activeJobs: 0,
         totalApplications: 0,
-        newApplications: 0
+        expiredJobs: 0
     })
 
     useEffect(() => {
-        // Load jobs from localStorage
-        const storedJobs = localStorage.getItem('hrms_jobs')
-        if (storedJobs) {
-            const parsedJobs = JSON.parse(storedJobs)
-            setJobs(parsedJobs)
-            setStats({
-                totalJobs: parsedJobs.length,
-                activeJobs: parsedJobs.length,
-                totalApplications: Math.floor(Math.random() * 150) + 50,
-                newApplications: Math.floor(Math.random() * 20) + 5
-            })
+        const fetchDashboardData = async () => {
+            try {
+                setLoading(true)
+
+                // Fetch jobs from Firestore
+                const jobsRef = collection(db, 'job_postings')
+                const jobsQuery = query(jobsRef, orderBy('postedDate', 'desc'))
+                const jobsSnapshot = await getDocs(jobsQuery)
+                const jobsList = jobsSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }))
+
+                // Fetch applications from Firestore
+                const applicationsRef = collection(db, 'job_applications')
+                const applicationsSnapshot = await getDocs(applicationsRef)
+                const totalApplications = applicationsSnapshot.size
+
+                // Calculate active and expired jobs
+                const now = new Date()
+                const activeJobs = jobsList.filter(job =>
+                    !job.expiryDateTime || new Date(job.expiryDateTime) > now
+                )
+                const expiredJobs = jobsList.filter(job =>
+                    job.expiryDateTime && new Date(job.expiryDateTime) <= now
+                )
+
+                setJobs(jobsList)
+                setStats({
+                    totalJobs: jobsList.length,
+                    activeJobs: activeJobs.length,
+                    totalApplications: totalApplications,
+                    expiredJobs: expiredJobs.length
+                })
+            } catch (error) {
+                console.error('Error fetching dashboard data:', error)
+            } finally {
+                setLoading(false)
+            }
         }
+
+        fetchDashboardData()
     }, [])
 
     const recentJobs = jobs.slice(0, 5)
@@ -36,7 +69,7 @@ function AdminDashboard() {
             </div>
 
             {/* Statistics Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                 {/* Total Jobs */}
                 <div className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 rounded-xl p-6 hover:shadow-lg transition-shadow">
                     <div className="flex items-center justify-between mb-4">
@@ -46,11 +79,20 @@ function AdminDashboard() {
                             </svg>
                         </div>
                         <span className="text-sm font-semibold text-blue-600 bg-blue-200 px-3 py-1 rounded-full">
-                            Active
+                            Total
                         </span>
                     </div>
-                    <h3 className="text-3xl font-bold text-blue-700 mb-1">{stats.totalJobs}</h3>
-                    <p className="text-sm font-medium text-gray-700">Total Job Postings</p>
+                    {loading ? (
+                        <div className="animate-pulse">
+                            <div className="h-8 bg-blue-200 rounded w-16 mb-2"></div>
+                            <div className="h-4 bg-blue-200 rounded w-32"></div>
+                        </div>
+                    ) : (
+                        <>
+                            <h3 className="text-3xl font-bold text-blue-700 mb-1">{stats.totalJobs}</h3>
+                            <p className="text-sm font-medium text-gray-700">Total Job Postings</p>
+                        </>
+                    )}
                 </div>
 
                 {/* Active Jobs */}
@@ -62,11 +104,20 @@ function AdminDashboard() {
                             </svg>
                         </div>
                         <span className="text-sm font-semibold text-green-600 bg-green-200 px-3 py-1 rounded-full">
-                            +{stats.activeJobs}
+                            Active
                         </span>
                     </div>
-                    <h3 className="text-3xl font-bold text-green-700 mb-1">{stats.activeJobs}</h3>
-                    <p className="text-sm font-medium text-gray-700">Active Openings</p>
+                    {loading ? (
+                        <div className="animate-pulse">
+                            <div className="h-8 bg-green-200 rounded w-16 mb-2"></div>
+                            <div className="h-4 bg-green-200 rounded w-32"></div>
+                        </div>
+                    ) : (
+                        <>
+                            <h3 className="text-3xl font-bold text-green-700 mb-1">{stats.activeJobs}</h3>
+                            <p className="text-sm font-medium text-gray-700">Active Openings</p>
+                        </>
+                    )}
                 </div>
 
                 {/* Total Applications */}
@@ -81,25 +132,19 @@ function AdminDashboard() {
                             Total
                         </span>
                     </div>
-                    <h3 className="text-3xl font-bold text-purple-700 mb-1">{stats.totalApplications}</h3>
-                    <p className="text-sm font-medium text-gray-700">Total Applications</p>
+                    {loading ? (
+                        <div className="animate-pulse">
+                            <div className="h-8 bg-purple-200 rounded w-16 mb-2"></div>
+                            <div className="h-4 bg-purple-200 rounded w-32"></div>
+                        </div>
+                    ) : (
+                        <>
+                            <h3 className="text-3xl font-bold text-purple-700 mb-1">{stats.totalApplications}</h3>
+                            <p className="text-sm font-medium text-gray-700">Total Applications</p>
+                        </>
+                    )}
                 </div>
 
-                {/* New Applications */}
-                <div className="bg-gradient-to-br from-orange-50 to-orange-100 border-2 border-orange-200 rounded-xl p-6 hover:shadow-lg transition-shadow">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="w-12 h-12 bg-orange-600 rounded-lg flex items-center justify-center">
-                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                            </svg>
-                        </div>
-                        <span className="text-sm font-semibold text-orange-600 bg-orange-200 px-3 py-1 rounded-full">
-                            New
-                        </span>
-                    </div>
-                    <h3 className="text-3xl font-bold text-orange-700 mb-1">{stats.newApplications}</h3>
-                    <p className="text-sm font-medium text-gray-700">New This Week</p>
-                </div>
             </div>
 
             {/* Quick Actions */}
@@ -118,34 +163,7 @@ function AdminDashboard() {
                     </div>
                 </Link>
 
-                <Link to="/admin/employees" className="card hover:border-purple-300 group">
-                    <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 bg-purple-100 rounded-xl flex items-center justify-center group-hover:bg-purple-200 transition-colors">
-                            <svg className="w-7 h-7 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 className="text-lg font-bold text-gray-900 group-hover:text-purple-600 transition-colors">Manage Employees</h3>
-                            <p className="text-sm text-gray-600">View all employees</p>
-                        </div>
-                    </div>
-                </Link>
 
-                <Link to="/admin/settings" className="card hover:border-green-300 group">
-                    <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 bg-green-100 rounded-xl flex items-center justify-center group-hover:bg-green-200 transition-colors">
-                            <svg className="w-7 h-7 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 className="text-lg font-bold text-gray-900 group-hover:text-green-600 transition-colors">Settings</h3>
-                            <p className="text-sm text-gray-600">Configure system</p>
-                        </div>
-                    </div>
-                </Link>
             </div>
 
             {/* Recent Job Postings */}
@@ -160,7 +178,12 @@ function AdminDashboard() {
                     </Link>
                 </div>
 
-                {recentJobs.length === 0 ? (
+                {loading ? (
+                    <div className="text-center py-12">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                        <p className="text-gray-600 mt-4">Loading jobs...</p>
+                    </div>
+                ) : recentJobs.length === 0 ? (
                     <div className="text-center py-12">
                         <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                             <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -186,25 +209,34 @@ function AdminDashboard() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {recentJobs.map((job) => (
-                                    <tr key={job.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                                        <td className="py-4 px-4">
-                                            <div className="font-semibold text-gray-900">{job.jobTitle}</div>
-                                        </td>
-                                        <td className="py-4 px-4">
-                                            <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
-                                                {job.department}
-                                            </span>
-                                        </td>
-                                        <td className="py-4 px-4 text-gray-700">{job.employmentType}</td>
-                                        <td className="py-4 px-4 text-gray-700">{job.location}</td>
-                                        <td className="py-4 px-4">
-                                            <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">
-                                                Active
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))}
+                                {recentJobs.map((job) => {
+                                    const isExpired = job.expiryDateTime && new Date(job.expiryDateTime) <= new Date()
+                                    return (
+                                        <tr key={job.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                                            <td className="py-4 px-4">
+                                                <div className="font-semibold text-gray-900">{job.jobTitle}</div>
+                                            </td>
+                                            <td className="py-4 px-4">
+                                                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+                                                    {job.department}
+                                                </span>
+                                            </td>
+                                            <td className="py-4 px-4 text-gray-700">{job.employmentType}</td>
+                                            <td className="py-4 px-4 text-gray-700">{job.location}</td>
+                                            <td className="py-4 px-4">
+                                                {isExpired ? (
+                                                    <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-semibold">
+                                                        Expired
+                                                    </span>
+                                                ) : (
+                                                    <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">
+                                                        Active
+                                                    </span>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    )
+                                })}
                             </tbody>
                         </table>
                     </div>

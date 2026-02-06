@@ -1,12 +1,20 @@
 import { useState, useEffect } from 'react'
 import EducationEntry from '../../components/user/EducationEntry'
 import WorkExperienceEntry from '../../components/user/WorkExperienceEntry'
+import UserLogin from '../../components/user/UserLogin'
+import { useAuth } from '../../context/AuthContext'
 import { uploadResume, submitApplication, sendConfirmationEmail } from '../../services/applicationService'
 
+import { collection, getDocs, query, orderBy } from 'firebase/firestore'
+import { db } from '../../config/firebase'
+
 function UserHome() {
+    const { currentUser } = useAuth()
     const [jobs, setJobs] = useState([])
+    const [loading, setLoading] = useState(true)
     const [expandedJobId, setExpandedJobId] = useState(null)
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [showLoginModal, setShowLoginModal] = useState(false)
     const [applicationData, setApplicationData] = useState({
         // Personal Details
         fullName: '',
@@ -40,15 +48,41 @@ function UserHome() {
         portfolioLink: ''
     })
 
-    // Load jobs from localStorage
+    // Fetch jobs from Firestore
     useEffect(() => {
-        const savedJobs = localStorage.getItem('hrms_jobs')
-        if (savedJobs) {
-            setJobs(JSON.parse(savedJobs))
+        const fetchJobs = async () => {
+            try {
+                const jobsRef = collection(db, 'job_postings')
+                const q = query(jobsRef, orderBy('postedDate', 'desc'))
+                const querySnapshot = await getDocs(q)
+                const jobsList = querySnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }))
+
+                // Filter out expired jobs - only show active jobs to users
+                const now = new Date()
+                const activeJobs = jobsList.filter(job => {
+                    if (!job.expiryDateTime) return true // No expiry = always active
+                    return new Date(job.expiryDateTime) > now // Only show if not expired
+                })
+
+                setJobs(activeJobs)
+            } catch (error) {
+                console.error('Error fetching jobs:', error)
+            } finally {
+                setLoading(false)
+            }
         }
+
+        fetchJobs()
     }, [])
 
     const handleApply = (jobId) => {
+        if (!currentUser) {
+            setShowLoginModal(true)
+            return
+        }
         setExpandedJobId(expandedJobId === jobId ? null : jobId)
         if (expandedJobId !== jobId) {
             // Reset form when opening
@@ -324,7 +358,12 @@ Please try again or contact support if the problem persists.`)
             <div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">Available Positions</h2>
 
-                {jobs.length === 0 ? (
+                {loading ? (
+                    <div className="text-center py-16">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+                        <p className="text-gray-600">Loading career opportunities...</p>
+                    </div>
+                ) : jobs.length === 0 ? (
                     <div className="card text-center py-16">
                         <svg className="w-20 h-20 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -744,6 +783,8 @@ Please try again or contact support if the problem persists.`)
                     </div>
                 )}
             </div>
+            {/* Login Modal */}
+            <UserLogin isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} />
         </div>
     )
 }
