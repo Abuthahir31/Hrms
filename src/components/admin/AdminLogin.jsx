@@ -224,7 +224,7 @@ function AdminLogin() {
                             </svg>
                             <span className="font-semibold">Secure Access</span>
                             <span className="text-gray-400">•</span>
-                            <span>Authorized Personnel Only</span>
+                            <span>Authorized Person Only</span>
                         </div>
                         <p className="text-center text-xs text-gray-500 mt-2">
                             © 2024 Hitachi Construction Machinery Zambia Co., Ltd
