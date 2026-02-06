@@ -75,7 +75,7 @@ function Homepage() {
               <a href="#contact" className="block text-gray-800 hover:text-orange-600 font-medium">Contact</a>
               
               <a
-                href="https://careers.hitachicm.com"
+                href="http://hrms-w78g.vercel.app/user/home"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block bg-orange-600 hover:bg-orange-700 text-white text-center py-3 rounded-lg font-medium mt-4"
@@ -210,11 +210,11 @@ function Homepage() {
               <p className="text-sm mb-4">
                 Join a team that's building Zambia's future.
               </p>
-              <a
-                href="https://careers.hitachicm.com"
+                <a
+                href={process.env.REACT_APP_API_CAREERS_URL} // ← replace with real link when available
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-block bg-orange-600 hover:bg-orange-700 px-6 py-3 rounded-lg text-white font-medium transition"
+                className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2.5 rounded-lg font-medium transition-colors shadow-sm flex items-center gap-2"
               >
                 View Open Positions
               </a>
