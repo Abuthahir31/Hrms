@@ -227,7 +227,7 @@ function AdminLogin() {
                             <span>Authorized Person Only</span>
                         </div>
                         <p className="text-center text-xs text-gray-500 mt-2">
-                            © 2024 Hitachi Construction Machinery Zambia Co., Ltd
+                            © 2026 Hitachi Construction Machinery Zambia Co., Ltd
                         </p>
                     </div>
                 </div>
