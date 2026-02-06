@@ -85,10 +85,10 @@ function UserHome() {
         }
         setExpandedJobId(expandedJobId === jobId ? null : jobId)
         if (expandedJobId !== jobId) {
-            // Reset form when opening
+            // Reset form when opening and auto-fill email from logged-in user
             setApplicationData({
                 fullName: '',
-                email: '',
+                email: currentUser.email || '', // Auto-populate from logged-in user
                 phone: '',
                 address: '',
                 education: [{
@@ -523,11 +523,13 @@ Please try again or contact support if the problem persists.`)
                                                             type="email"
                                                             name="email"
                                                             value={applicationData.email}
-                                                            onChange={handleInputChange}
-                                                            className="input-field"
+                                                            className="input-field bg-gray-100 cursor-not-allowed"
                                                             placeholder="john@example.com"
+                                                            disabled
+                                                            readOnly
                                                             required
                                                         />
+                                                        <p className="text-xs text-gray-500 mt-1">Email from your logged-in account</p>
                                                     </div>
 
                                                     <div>

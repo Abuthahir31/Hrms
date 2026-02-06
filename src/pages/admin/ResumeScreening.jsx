@@ -3,6 +3,8 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { collection, getDocs, doc, updateDoc, query, orderBy } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
 import { db, functions } from '../../config/firebase'
+import { jsPDF } from 'jspdf'
+import 'jspdf-autotable'
 
 function ResumeScreening() {
     const navigate = useNavigate()
@@ -11,6 +13,7 @@ function ResumeScreening() {
     const [selectedApp, setSelectedApp] = useState(null)
     const [showInterviewModal, setShowInterviewModal] = useState(false)
     const [showEvaluationModal, setShowEvaluationModal] = useState(false)
+    const [showDetailsModal, setShowDetailsModal] = useState(false)
     const [activeTab, setActiveTab] = useState('pending') // pending, shortlisted, interviewed
 
     // Filter States
@@ -153,6 +156,201 @@ function ResumeScreening() {
             await sendEmailNotification(app, 'rejected')
             alert('Application rejected and email sent.')
         }
+    }
+
+    const handleViewDetails = (app) => {
+        setSelectedApp(app)
+        setShowDetailsModal(true)
+    }
+
+    const downloadApplicationPDF = (app) => {
+        const doc = new jsPDF()
+
+        // Header
+        doc.setFontSize(20)
+        doc.setTextColor(59, 130, 246) // Blue color
+        doc.text('Job Application Details', 14, 20)
+
+        doc.setFontSize(11)
+        doc.setTextColor(0, 0, 0)
+        doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 28)
+
+        let yPos = 40
+
+        // Personal Information
+        doc.setFontSize(14)
+        doc.setTextColor(37, 99, 235)
+        doc.text('Personal Information', 14, yPos)
+        yPos += 8
+
+        doc.setFontSize(10)
+        doc.setTextColor(0, 0, 0)
+        const personalInfo = [
+            ['Full Name', app.personalDetails?.fullName || 'N/A'],
+            ['Email', app.personalDetails?.email || 'N/A'],
+            ['Phone', app.personalDetails?.phone || 'N/A'],
+            ['Address', app.personalDetails?.address || 'N/A'],
+            ['Applied For', app.jobTitle || 'N/A'],
+            ['Application Date', app.appliedAt ? new Date(app.appliedAt.toDate()).toLocaleDateString() : 'N/A'],
+            ['Status', app.status || 'pending']
+        ]
+
+        doc.autoTable({
+            startY: yPos,
+            body: personalInfo,
+            theme: 'plain',
+            styles: { fontSize: 10, cellPadding: 2 },
+            columnStyles: {
+                0: { fontStyle: 'bold', cellWidth: 50 },
+                1: { cellWidth: 130 }
+            }
+        })
+
+        yPos = doc.lastAutoTable.finalY + 10
+
+        // Education
+        if (app.education && app.education.length > 0) {
+            doc.setFontSize(14)
+            doc.setTextColor(37, 99, 235)
+            doc.text('Education', 14, yPos)
+            yPos += 8
+
+            app.education.forEach((edu, index) => {
+                const eduData = [
+                    ['Degree Level', edu.degreeLevel || 'N/A'],
+                    ['Institution', edu.institution || 'N/A'],
+                    ['Field of Study', edu.fieldOfStudy || 'N/A'],
+                    ['Year of Completion', edu.yearOfCompletion || 'N/A'],
+                    ['Grade/CGPA', edu.grade || 'N/A']
+                ]
+
+                doc.setFontSize(11)
+                doc.setTextColor(0, 0, 0)
+                doc.text(`Education ${index + 1}`, 14, yPos)
+                yPos += 5
+
+                doc.autoTable({
+                    startY: yPos,
+                    body: eduData,
+                    theme: 'plain',
+                    styles: { fontSize: 9, cellPadding: 1.5 },
+                    columnStyles: {
+                        0: { fontStyle: 'bold', cellWidth: 50 },
+                        1: { cellWidth: 130 }
+                    }
+                })
+
+                yPos = doc.lastAutoTable.finalY + 5
+            })
+
+            yPos += 5
+        }
+
+        // Work Experience
+        if (app.experience && app.experience.length > 0 && app.experience[0].company) {
+            // Check if new page needed
+            if (yPos > 250) {
+                doc.addPage()
+                yPos = 20
+            }
+
+            doc.setFontSize(14)
+            doc.setTextColor(37, 99, 235)
+            doc.text('Work Experience', 14, yPos)
+            yPos += 8
+
+            app.experience.forEach((exp, index) => {
+                if (exp.company) {
+                    const expData = [
+                        ['Company', exp.company || 'N/A'],
+                        ['Position', exp.position || 'N/A'],
+                        ['Duration', exp.duration || 'N/A'],
+                        ['Description', exp.description || 'N/A']
+                    ]
+
+                    doc.setFontSize(11)
+                    doc.setTextColor(0, 0, 0)
+                    doc.text(`Experience ${index + 1}`, 14, yPos)
+                    yPos += 5
+
+                    doc.autoTable({
+                        startY: yPos,
+                        body: expData,
+                        theme: 'plain',
+                        styles: { fontSize: 9, cellPadding: 1.5 },
+                        columnStyles: {
+                            0: { fontStyle: 'bold', cellWidth: 50 },
+                            1: { cellWidth: 130 }
+                        }
+                    })
+
+                    yPos = doc.lastAutoTable.finalY + 5
+                }
+            })
+
+            yPos += 5
+        }
+
+        // Skills
+        if (app.skills) {
+            if (yPos > 250) {
+                doc.addPage()
+                yPos = 20
+            }
+
+            doc.setFontSize(14)
+            doc.setTextColor(37, 99, 235)
+            doc.text('Skills', 14, yPos)
+            yPos += 8
+
+            doc.setFontSize(10)
+            doc.setTextColor(0, 0, 0)
+            const skillsArray = Array.isArray(app.skills) ? app.skills : app.skills.split(',').map(s => s.trim())
+            const skillsText = skillsArray.join(', ')
+            const splitSkills = doc.splitTextToSize(skillsText, 180)
+            doc.text(splitSkills, 14, yPos)
+            yPos += splitSkills.length * 5 + 10
+        }
+
+        // Cover Letter
+        if (app.coverLetter) {
+            if (yPos > 220) {
+                doc.addPage()
+                yPos = 20
+            }
+
+            doc.setFontSize(14)
+            doc.setTextColor(37, 99, 235)
+            doc.text('Cover Letter', 14, yPos)
+            yPos += 8
+
+            doc.setFontSize(10)
+            doc.setTextColor(0, 0, 0)
+            const splitCoverLetter = doc.splitTextToSize(app.coverLetter, 180)
+            doc.text(splitCoverLetter, 14, yPos)
+            yPos += splitCoverLetter.length * 5 + 10
+        }
+
+        // Portfolio Link
+        if (app.portfolioLink) {
+            if (yPos > 270) {
+                doc.addPage()
+                yPos = 20
+            }
+
+            doc.setFontSize(14)
+            doc.setTextColor(37, 99, 235)
+            doc.text('Portfolio', 14, yPos)
+            yPos += 8
+
+            doc.setFontSize(10)
+            doc.setTextColor(37, 99, 235)
+            doc.textWithLink(app.portfolioLink, 14, yPos, { url: app.portfolioLink })
+        }
+
+        // Save PDF
+        const fileName = `${app.personalDetails?.fullName?.replace(/\s+/g, '_')}_Application.pdf`
+        doc.save(fileName)
     }
 
     const handleScheduleInterview = async () => {
@@ -462,6 +660,18 @@ function ResumeScreening() {
                                         </a>
                                     )}
 
+                                    {/* View All Details Button */}
+                                    <button
+                                        onClick={() => handleViewDetails(app)}
+                                        className="btn-primary text-sm flex items-center justify-center gap-2"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                        View All Details
+                                    </button>
+
                                     {/* Pending Actions */}
                                     {(app.status === 'pending' || !app.status) && (
                                         <>
@@ -755,6 +965,251 @@ function ResumeScreening() {
                                     ✕ Reject
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* View All Details Modal */}
+            {showDetailsModal && selectedApp && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                        {/* Modal Header */}
+                        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
+                            <div>
+                                <h2 className="text-2xl font-bold text-gray-900">Application Details</h2>
+                                <p className="text-sm text-gray-600 mt-1">{selectedApp.personalDetails?.fullName}</p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <button
+                                    onClick={() => downloadApplicationPDF(selectedApp)}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm flex items-center gap-2"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    Download PDF
+                                </button>
+                                <button
+                                    onClick={() => setShowDetailsModal(false)}
+                                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                                >
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Modal Content */}
+                        <div className="p-6 space-y-6">
+                            {/* Personal Information */}
+                            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6 border-2 border-blue-200">
+                                <h3 className="text-lg font-bold text-blue-900 mb-4 flex items-center gap-2">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                    </svg>
+                                    Personal Information
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <p className="text-sm font-semibold text-blue-700">Full Name</p>
+                                        <p className="text-gray-900">{selectedApp.personalDetails?.fullName || 'N/A'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-semibold text-blue-700">Email</p>
+                                        <p className="text-gray-900">{selectedApp.personalDetails?.email || 'N/A'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-semibold text-blue-700">Phone</p>
+                                        <p className="text-gray-900">{selectedApp.personalDetails?.phone || 'N/A'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-semibold text-blue-700">Address</p>
+                                        <p className="text-gray-900">{selectedApp.personalDetails?.address || 'N/A'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-semibold text-blue-700">Applied For</p>
+                                        <p className="text-gray-900 font-semibold">{selectedApp.jobTitle || 'N/A'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-semibold text-blue-700">Application Date</p>
+                                        <p className="text-gray-900">
+                                            {selectedApp.appliedAt ? new Date(selectedApp.appliedAt.toDate()).toLocaleDateString() : 'N/A'}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Education */}
+                            {selectedApp.education && selectedApp.education.length > 0 && (
+                                <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-6 border-2 border-purple-200">
+                                    <h3 className="text-lg font-bold text-purple-900 mb-4 flex items-center gap-2">
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                        </svg>
+                                        Education History
+                                    </h3>
+                                    <div className="space-y-4">
+                                        {selectedApp.education.map((edu, index) => (
+                                            <div key={index} className="bg-white rounded-lg p-4 border border-purple-200">
+                                                <p className="font-semibold text-purple-900 mb-2">Education {index + 1}</p>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                                                    <div>
+                                                        <span className="font-semibold text-purple-700">Degree: </span>
+                                                        <span className="text-gray-900">{edu.degreeLevel || 'N/A'}</span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="font-semibold text-purple-700">Institution: </span>
+                                                        <span className="text-gray-900">{edu.institution || 'N/A'}</span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="font-semibold text-purple-700">Field: </span>
+                                                        <span className="text-gray-900">{edu.fieldOfStudy || 'N/A'}</span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="font-semibold text-purple-700">Year: </span>
+                                                        <span className="text-gray-900">{edu.yearOfCompletion || 'N/A'}</span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="font-semibold text-purple-700">Grade/CGPA: </span>
+                                                        <span className="text-gray-900">{edu.grade || 'N/A'}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Work Experience */}
+                            {selectedApp.experience && selectedApp.experience.length > 0 && selectedApp.experience[0].company && (
+                                <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-6 border-2 border-green-200">
+                                    <h3 className="text-lg font-bold text-green-900 mb-4 flex items-center gap-2">
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                        </svg>
+                                        Work Experience
+                                    </h3>
+                                    <div className="space-y-4">
+                                        {selectedApp.experience.map((exp, index) => (
+                                            exp.company && (
+                                                <div key={index} className="bg-white rounded-lg p-4 border border-green-200">
+                                                    <p className="font-semibold text-green-900 mb-2">Experience {index + 1}</p>
+                                                    <div className="space-y-2 text-sm">
+                                                        <div>
+                                                            <span className="font-semibold text-green-700">Company: </span>
+                                                            <span className="text-gray-900">{exp.company}</span>
+                                                        </div>
+                                                        <div>
+                                                            <span className="font-semibold text-green-700">Position: </span>
+                                                            <span className="text-gray-900">{exp.position || 'N/A'}</span>
+                                                        </div>
+                                                        <div>
+                                                            <span className="font-semibold text-green-700">Duration: </span>
+                                                            <span className="text-gray-900">{exp.duration || 'N/A'}</span>
+                                                        </div>
+                                                        <div>
+                                                            <span className="font-semibold text-green-700">Description: </span>
+                                                            <p className="text-gray-900 mt-1">{exp.description || 'N/A'}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Skills */}
+                            {selectedApp.skills && (
+                                <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-6 border-2 border-orange-200">
+                                    <h3 className="text-lg font-bold text-orange-900 mb-4 flex items-center gap-2">
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                                        </svg>
+                                        Skills
+                                    </h3>
+                                    <div className="flex flex-wrap gap-2">
+                                        {(Array.isArray(selectedApp.skills)
+                                            ? selectedApp.skills
+                                            : selectedApp.skills.split(',').map(s => s.trim())
+                                        ).map((skill, index) => (
+                                            <span key={index} className="px-3 py-1 bg-orange-200 text-orange-900 rounded-full text-sm font-medium">
+                                                {skill}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Cover Letter */}
+                            {selectedApp.coverLetter && (
+                                <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-xl p-6 border-2 border-indigo-200">
+                                    <h3 className="text-lg font-bold text-indigo-900 mb-4 flex items-center gap-2">
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                        Cover Letter
+                                    </h3>
+                                    <div className="bg-white rounded-lg p-4 border border-indigo-200">
+                                        <p className="text-gray-900 whitespace-pre-wrap">{selectedApp.coverLetter}</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Portfolio Link */}
+                            {selectedApp.portfolioLink && (
+                                <div className="bg-gradient-to-br from-pink-50 to-pink-100 rounded-xl p-6 border-2 border-pink-200">
+                                    <h3 className="text-lg font-bold text-pink-900 mb-4 flex items-center gap-2">
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                                        </svg>
+                                        Portfolio
+                                    </h3>
+                                    <a
+                                        href={selectedApp.portfolioLink}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-pink-700 hover:text-pink-900 underline break-all"
+                                    >
+                                        {selectedApp.portfolioLink}
+                                    </a>
+                                </div>
+                            )}
+
+                            {/* Resume Download */}
+                            {selectedApp.resumeUrl && (
+                                <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-6 border-2 border-gray-200">
+                                    <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                        Resume
+                                    </h3>
+                                    <a
+                                        href={selectedApp.resumeUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="btn-primary inline-flex items-center gap-2"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                        Download Resume
+                                    </a>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-end rounded-b-2xl">
+                            <button
+                                onClick={() => setShowDetailsModal(false)}
+                                className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium"
+                            >
+                                Close
+                            </button>
                         </div>
                     </div>
                 </div>
